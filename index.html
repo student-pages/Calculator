@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Calculator</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root[data-theme="dark"] {
+      --bg: #0d0d0f;
+      --surface: #18181c;
+      --surface2: #222228;
+      --border: rgba(255,255,255,0.07);
+      --text: #f0f0f5;
+      --text-muted: #6b6b80;
+      --accent: #7c6aff;
+      --accent-glow: rgba(124,106,255,0.3);
+      --btn-num: #1e1e25;
+      --btn-num-hover: #2a2a35;
+      --btn-op: #2a2360;
+      --btn-op-hover: #352e7a;
+      --btn-eq: #7c6aff;
+      --btn-eq-hover: #9580ff;
+      --btn-fn: #141418;
+      --btn-fn-hover: #1e1e25;
+      --shadow: 0 32px 80px rgba(0,0,0,0.6);
+      --display-bg: #111115;
+    }
+    :root[data-theme="light"] {
+      --bg: #eeeef3;
+      --surface: #ffffff;
+      --surface2: #f4f4f8;
+      --border: rgba(0,0,0,0.08);
+      --text: #1a1a2e;
+      --text-muted: #9090a8;
+      --accent: #5a47f5;
+      --accent-glow: rgba(90,71,245,0.2);
+      --btn-num: #f0f0f6;
+      --btn-num-hover: #e4e4ed;
+      --btn-op: #e0dcff;
+      --btn-op-hover: #d0caff;
+      --btn-eq: #5a47f5;
+      --btn-eq-hover: #7060ff;
+      --btn-fn: #e8e8f0;
+      --btn-fn-hover: #dcdce8;
+      --shadow: 0 32px 80px rgba(0,0,0,0.12);
+      --display-bg: #f8f8fc;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.4s ease, color 0.4s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Background orb */
+    body::before {
+      content: '';
+      position: fixed;
+      width: 500px; height: 500px;
+      border-radius: 50%;
+      background: var(--accent-glow);
+      filter: blur(120px);
+      top: -100px; right: -100px;
+      pointer-events: none;
+      transition: background 0.4s;
+    }
+
+    /* Theme toggle */
+    .theme-toggle {
+      position: fixed;
+      top: 24px; right: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 50px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: all 0.3s ease;
+      letter-spacing: 0.5px;
+      z-index: 100;
+      user-select: none;
+    }
+    .theme-toggle:hover { color: var(--text); border-color: var(--accent); }
+    .theme-toggle .icon { font-size: 15px; }
+
+    /* Calculator card */
+    .calc-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 24px;
+      width: 340px;
+      box-shadow: var(--shadow);
+      transition: background 0.4s, box-shadow 0.4s, border-color 0.4s;
+      position: relative;
+      z-index: 10;
+    }
+
+    /* Display */
+    .display {
+      background: var(--display-bg);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 20px 22px 16px;
+      margin-bottom: 20px;
+      min-height: 100px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: flex-end;
+      overflow: hidden;
+      transition: background 0.4s, border-color 0.4s;
+    }
+    .display .sub-expr {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      color: var(--text-muted);
+      min-height: 18px;
+      word-break: break-all;
+      text-align: right;
+    }
+    .display .main-val {
+      font-family: 'DM Mono', monospace;
+      font-size: 38px;
+      font-weight: 400;
+      color: var(--text);
+      line-height: 1.1;
+      word-break: break-all;
+      text-align: right;
+      transition: color 0.3s;
+    }
+    .display .main-val.unlocking {
+      color: var(--accent);
+      text-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    /* Buttons grid */
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: 14px;
+      height: 68px;
+      font-size: 18px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: 'Outfit', sans-serif;
+      letter-spacing: 0.2px;
+      position: relative;
+      overflow: hidden;
+    }
+    button::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: white;
+      opacity: 0;
+      transition: opacity 0.15s;
+      border-radius: inherit;
+    }
+    button:active::after { opacity: 0.07; }
+    button:active { transform: scale(0.95); }
+
+    .btn-fn { background: var(--btn-fn); color: var(--text-muted); font-size: 15px; }
+    .btn-fn:hover { background: var(--btn-fn-hover); color: var(--text); }
+
+    .btn-op { background: var(--btn-op); color: var(--accent); font-size: 22px; }
+    .btn-op:hover { background: var(--btn-op-hover); }
+
+    .btn-num { background: var(--btn-num); color: var(--text); }
+    .btn-num:hover { background: var(--btn-num-hover); }
+
+    .btn-eq {
+      background: var(--btn-eq);
+      color: #fff;
+      font-size: 24px;
+      box-shadow: 0 4px 20px var(--accent-glow);
+    }
+    .btn-eq:hover { background: var(--btn-eq-hover); box-shadow: 0 6px 28px var(--accent-glow); }
+
+    .btn-zero { grid-column: span 2; border-radius: 34px; text-align: left; padding-left: 26px; }
+
+    /* Secret iframe overlay */
+    #secret-frame {
+      display: none;
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      border: none;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.6s ease;
+    }
+    #secret-frame.visible {
+      display: block;
+    }
+    #secret-frame.faded-in {
+      opacity: 1;
+    }
+
+    /* Ripple unlock animation */
+    @keyframes pulseRing {
+      0% { transform: scale(0.8); opacity: 1; }
+      100% { transform: scale(2.5); opacity: 0; }
+    }
+    .unlock-ring {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 9998;
+    }
+    .unlock-ring::before {
+      content: '';
+      width: 300px; height: 300px;
+      border-radius: 50%;
+      border: 3px solid var(--accent);
+      animation: pulseRing 0.6s ease-out forwards;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Theme Toggle -->
+  <div class="theme-toggle" id="themeToggle">
+    <span class="icon" id="themeIcon">☀️</span>
+    <span id="themeLabel">Light</span>
+  </div>
+
+  <!-- Calculator -->
+  <div class="calc-card" id="calcCard">
+    <div class="display">
+      <div class="sub-expr" id="subExpr"></div>
+      <div class="main-val" id="mainVal">0</div>
+    </div>
+    <div class="buttons">
+      <!-- Row 1 -->
+      <button class="btn-fn" onclick="calcFn('AC')">AC</button>
+      <button class="btn-fn" onclick="calcFn('+/-')">+/−</button>
+      <button class="btn-fn" onclick="calcFn('%')">%</button>
+      <button class="btn-op" onclick="calcOp('÷')">÷</button>
+      <!-- Row 2 -->
+      <button class="btn-num" onclick="calcNum('7')">7</button>
+      <button class="btn-num" onclick="calcNum('8')">8</button>
+      <button class="btn-num" onclick="calcNum('9')">9</button>
+      <button class="btn-op" onclick="calcOp('×')">×</button>
+      <!-- Row 3 -->
+      <button class="btn-num" onclick="calcNum('4')">4</button>
+      <button class="btn-num" onclick="calcNum('5')">5</button>
+      <button class="btn-num" onclick="calcNum('6')">6</button>
+      <button class="btn-op" onclick="calcOp('−')">−</button>
+      <!-- Row 4 -->
+      <button class="btn-num" onclick="calcNum('1')">1</button>
+      <button class="btn-num" onclick="calcNum('2')">2</button>
+      <button class="btn-num" onclick="calcNum('3')">3</button>
+      <button class="btn-op" onclick="calcOp('+')">+</button>
+      <!-- Row 5 -->
+      <button class="btn-num btn-zero" onclick="calcNum('0')">0</button>
+      <button class="btn-num" onclick="calcDot()">.</button>
+      <button class="btn-eq" onclick="calcEq()">=</button>
+    </div>
+  </div>
+
+  <!-- Secret iframe (hidden until unlocked) -->
+  <iframe id="secret-frame" src="" allowfullscreen></iframe>
+
+  <script>
+    const SECRET = '9080.1020.5456';
+    const SECRET_URL = 'https://12clark.psgl.cl/';
+
+    // ── Theme ──────────────────────────────────────────────
+    const root = document.documentElement;
+    const toggle = document.getElementById('themeToggle');
+    const themeIcon = document.getElementById('themeIcon');
+    const themeLabel = document.getElementById('themeLabel');
+    let isDark = true;
+
+    toggle.addEventListener('click', () => {
+      isDark = !isDark;
+      root.setAttribute('data-theme', isDark ? 'dark' : 'light');
+      themeIcon.textContent = isDark ? '☀️' : '🌙';
+      themeLabel.textContent = isDark ? 'Light' : 'Dark';
+    });
+
+    // ── Calculator Logic ───────────────────────────────────
+    let currentInput = '';
+    let operator = null;
+    let prevValue = null;
+    let justEvaluated = false;
+    let rawSequence = '';  // tracks the raw typed sequence for secret check
+
+    const mainVal = document.getElementById('mainVal');
+    const subExpr = document.getElementById('subExpr');
+
+    function updateDisplay(val) {
+      mainVal.textContent = val === '' ? '0' : val;
+    }
+
+    function calcNum(n) {
+      if (justEvaluated) {
+        currentInput = '';
+        rawSequence = '';
+        justEvaluated = false;
+      }
+      if (currentInput === '0' && n !== '.') currentInput = '';
+      currentInput += n;
+      rawSequence += n;
+      updateDisplay(currentInput);
+      subExpr.textContent = '';
+    }
+
+    function calcDot() {
+      if (justEvaluated) {
+        currentInput = '0';
+        rawSequence = '';
+        justEvaluated = false;
+      }
+      // Allow multiple dots for secret code tracking
+      if (!currentInput.includes('.')) currentInput += '.';
+      else currentInput += '.'; // allow for secret entry
+      rawSequence += '.';
+      updateDisplay(currentInput);
+    }
+
+    function calcOp(op) {
+      justEvaluated = false;
+      if (currentInput !== '') {
+        if (prevValue !== null && operator) {
+          const result = evaluate(prevValue, parseFloat(currentInput), operator);
+          prevValue = result;
+          subExpr.textContent = result + ' ' + op;
+          updateDisplay(result);
+        } else {
+          prevValue = parseFloat(currentInput);
+          subExpr.textContent = currentInput + ' ' + op;
+        }
+        operator = op;
+        currentInput = '';
+        rawSequence = '';
+      } else if (prevValue !== null) {
+        operator = op;
+        subExpr.textContent = prevValue + ' ' + op;
+      }
+    }
+
+    function evaluate(a, b, op) {
+      switch(op) {
+        case '+': return parseFloat((a + b).toPrecision(12));
+        case '−': return parseFloat((a - b).toPrecision(12));
+        case '×': return parseFloat((a * b).toPrecision(12));
+        case '÷': return b !== 0 ? parseFloat((a / b).toPrecision(12)) : 'Error';
+      }
+    }
+
+    function calcFn(fn) {
+      rawSequence = '';
+      justEvaluated = false;
+      if (fn === 'AC') {
+        currentInput = '';
+        operator = null;
+        prevValue = null;
+        updateDisplay('0');
+        subExpr.textContent = '';
+      } else if (fn === '+/-') {
+        if (currentInput) {
+          currentInput = (parseFloat(currentInput) * -1).toString();
+          updateDisplay(currentInput);
+        }
+      } else if (fn === '%') {
+        if (currentInput) {
+          currentInput = (parseFloat(currentInput) / 100).toString();
+          updateDisplay(currentInput);
+        }
+      }
+    }
+
+    function calcEq() {
+      // Check secret code against full raw sequence
+      const fullSeq = (prevValue !== null ? prevValue : '') + (operator ? '.' : '') + rawSequence;
+      // Better: check the display value against secret
+      const displayedValue = mainVal.textContent;
+
+      // Check raw sequence typed in this input cycle vs secret
+      // We rebuild the full typed string
+      const check = currentInput;
+
+      if (check === SECRET || rawSequence === SECRET || displayedValue === SECRET) {
+        triggerUnlock();
+        return;
+      }
+
+      // Normal calculation
+      if (currentInput !== '' && operator && prevValue !== null) {
+        const b = parseFloat(currentInput);
+        const result = evaluate(prevValue, b, operator);
+        subExpr.textContent = prevValue + ' ' + operator + ' ' + currentInput + ' =';
+        updateDisplay(result);
+        currentInput = result.toString();
+        operator = null;
+        prevValue = null;
+        justEvaluated = true;
+        rawSequence = '';
+      } else if (currentInput) {
+        subExpr.textContent = currentInput + ' =';
+        justEvaluated = true;
+      }
+    }
+
+    // ── Unlock ─────────────────────────────────────────────
+    function triggerUnlock() {
+      mainVal.classList.add('unlocking');
+      mainVal.textContent = '✓';
+
+      // Ripple
+      const ring = document.createElement('div');
+      ring.className = 'unlock-ring';
+      document.body.appendChild(ring);
+      setTimeout(() => ring.remove(), 700);
+
+      // Fade out calculator, load iframe
+      setTimeout(() => {
+        const frame = document.getElementById('secret-frame');
+        frame.src = SECRET_URL;
+        frame.classList.add('visible');
+        document.getElementById('calcCard').style.opacity = '0';
+        document.getElementById('calcCard').style.transform = 'scale(0.9)';
+        document.getElementById('calcCard').style.transition = 'all 0.5s ease';
+        document.getElementById('themeToggle').style.opacity = '0';
+
+        setTimeout(() => {
+          frame.classList.add('faded-in');
+          document.getElementById('calcCard').style.display = 'none';
+          document.getElementById('themeToggle').style.display = 'none';
+        }, 500);
+      }, 400);
+    }
+
+    // ── Keyboard Support ───────────────────────────────────
+    document.addEventListener('keydown', (e) => {
+      if ('0123456789'.includes(e.key)) calcNum(e.key);
+      else if (e.key === '.') calcDot();
+      else if (e.key === '+') calcOp('+');
+      else if (e.key === '-') calcOp('−');
+      else if (e.key === '*') calcOp('×');
+      else if (e.key === '/') { e.preventDefault(); calcOp('÷'); }
+      else if (e.key === 'Enter' || e.key === '=') calcEq();
+      else if (e.key === 'Backspace') {
+        currentInput = currentInput.slice(0, -1);
+        rawSequence = rawSequence.slice(0, -1);
+        updateDisplay(currentInput || '0');
+      }
+      else if (e.key === 'Escape') calcFn('AC');
+    });
+  </script>
+</body>
+</html>
